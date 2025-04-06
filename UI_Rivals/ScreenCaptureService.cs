@@ -523,7 +523,7 @@ namespace UI_Rivals
             // Red has high red value, lower green and blue
             return red > 180 && green < 130 && blue < 130;
         }
-
+        S
         private bool IsYellow(byte red, byte green, byte blue)
         {
             // Yellow has high red and green values, low blue
