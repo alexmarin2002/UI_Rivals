@@ -74,6 +74,95 @@ namespace UI_Rivals
                 hsv.h += 360;
         }
 
+        public static bool BlackColor(byte red, byte green, byte blue, byte[] data, int width, int height, bool color)
+        {
+            bool isRedInRange = (red >= 0 && red <= 70);
+            bool isGreenInRange = (green >= 0 && green <= 70);
+            bool isBlueInRange = (blue >= 0 && blue <= 70);
+
+            if (!isRedInRange || !isGreenInRange || !isBlueInRange)
+            {
+                return false;
+            }
+
+            RGB rgb = new RGB(red, green, blue);
+            HSV hsv = new HSV(); 
+            RGBtoHSV(rgb, ref hsv);
+
+            bool isHueInRange = (hsv.h >= 200.0f && hsv.h <= 345.0f);
+            bool isSaturationInRange = (hsv.s >= 0.100f && hsv.s <= 0.400f);
+            bool isValueInRange = (hsv.v >= 0.050f && hsv.v <= 0.40f);
+
+            int centerX = width / 2;
+            int centerY = height / 2;
+
+            for (int y = centerY - 20; y <= centerY + 5; ++y)
+            {
+                for (int x = centerX - 10; x <= centerX + 10; ++x)
+                {
+                    // Check for array bounds to prevent exceptions
+                    if (x < 0 || x >= width || y < 0 || y >= height)
+                        continue;
+
+                    int baseIndex = (x + y * width) * 4;
+
+                    // Check for array bounds again to prevent access violation
+                    if (baseIndex < 0 || baseIndex + 2 >= data.Length)
+                        continue;
+
+                    byte pixelRed = data[baseIndex + 2];
+                    byte pixelGreen = data[baseIndex + 1];
+                    byte pixelBlue = data[baseIndex];
+
+                    if (color)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false; 
+
+        }
+
+        public static bool SpecialColor(byte red, byte green, byte blue, byte[] data, int width, int height, bool color, bool color2)
+        {
+            if (color2)
+            {
+                int centerX = width / 2;
+                int centerY = height / 2;
+
+                for (int y = centerY - 5; y <= centerY + 20; ++y)
+                {
+                    for (int x = centerX - 10; x <= centerX + 10; ++x)
+                    {
+                        // Check for array bounds to prevent exceptions
+                        if (x < 0 || x >= width || y < 0 || y >= height)
+                            continue;
+
+                        int baseIndex = (x + y * width) * 4;
+
+                        // Check for array bounds again to prevent access violation
+                        if (baseIndex < 0 || baseIndex + 2 >= data.Length)
+                            continue;
+
+                        byte pixelRed = data[baseIndex + 2];
+                        byte pixelGreen = data[baseIndex + 1];
+                        byte pixelBlue = data[baseIndex];
+
+                        if (color)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                return false;
+            }
+
+            return false;
+        }
         public static bool IsPurple(byte red, byte green, byte blue)
         {
             bool isRedInRange = (red >= 100 && red <= 255);
@@ -309,19 +398,15 @@ namespace UI_Rivals
             {
                 // Try to acquire the next frame with a reasonable timeout
                 duplication.AcquireNextFrame(100, out frameInfo, out screenResource);
-
                 // Check if we actually got a resource
                 if (screenResource == null)
                 {
                     return;
                 }
-
                 // Convert to Texture2D
                 screenTexture = screenResource.QueryInterface<Texture2D>();
-
                 // Get the texture description
                 var textureDesc = screenTexture.Description;
-
                 // Create a staging texture for CPU access
                 var cpuTextureDesc = new Texture2DDescription
                 {
@@ -336,40 +421,39 @@ namespace UI_Rivals
                     CpuAccessFlags = CpuAccessFlags.Read,
                     OptionFlags = ResourceOptionFlags.None
                 };
-
                 cpuTexture = new Texture2D(device, cpuTextureDesc);
-
                 // Copy the resource to the staging texture
                 device.ImmediateContext.CopyResource(screenTexture, cpuTexture);
-
                 // Map texture to access pixels
                 var dataBox = device.ImmediateContext.MapSubresource(
                     cpuTexture, 0, MapMode.Read, SharpDX.Direct3D11.MapFlags.None);
-
                 IntPtr dataPtr = dataBox.DataPointer;
                 int stride = dataBox.RowPitch;
                 int bytesPerPixel = 4; // BGRA format
-
                 bool colorFound = false;
-
                 // Make sure we stay within bounds
                 int minX = Math.Max(0, centerX - pixelRange);
                 int maxX = Math.Min(screenWidth - 1, centerX + pixelRange);
                 int minY = (centerY - 6);
                 int maxY = (centerY - 1);
+
                 if (variableTru)
                 {
-                  //  MessageBox.Show($"Error initializing screen capture: ", "Error",
-                 //             MessageBoxButton.OK, MessageBoxImage.Error);
-                    variableTru = false; 
+                    //  MessageBox.Show($"Error initializing screen capture: ", "Error",
+                    //             MessageBoxButton.OK, MessageBoxImage.Error);
+                    variableTru = false;
                 }
+
+                // Create a byte array to pass to the color detection methods
+                byte[] screenData = new byte[stride * screenHeight];
+                Marshal.Copy(dataPtr, screenData, 0, screenData.Length);
+
                 // Check pixels in a range around the center
                 for (int y = minY; y <= maxY && !colorFound; y++)
                 {
                     for (int x = minX; x <= maxX && !colorFound; x++)
                     {
                         int pixelOffset = (y * stride) + (x * bytesPerPixel);
-
                         // Ensure we don't read out of bounds
                         if (pixelOffset + 2 < stride * screenHeight)
                         {
@@ -377,12 +461,13 @@ namespace UI_Rivals
                             byte green = Marshal.ReadByte(dataPtr, pixelOffset + 1);
                             byte red = Marshal.ReadByte(dataPtr, pixelOffset + 2);
 
-                         //   if (IsTargetColor(red, green, blue))
-                         if (IsPurple(red, green, blue))
+                            // Replace the IsOutlineColor with the new combined check
+                            if (IsPurple(red, green, blue)||
+                                BlackColor(red, green, blue, screenData, screenWidth, screenHeight, IsPurple(red, green, blue)))
                             {
                                 SharedMemoryManager.Instance.SetValue(1);
-
-                                //   *pSharedValueInt = 1;
+                                // *pSharedValueInt = 1;
+                               // colorFound = true; // Add this to stop the loop once a color is found
                             }
                         }
                     }
@@ -445,6 +530,23 @@ namespace UI_Rivals
             return red > 180 && green > 180 && blue < 100;
         }
 
+        public static bool IsOutlineColor(int r, int g, int b)
+        {
+            // Target white color detection criteria
+
+            // All RGB values should be high for white
+            bool highRed = r > 220;
+            bool highGreen = g > 220;
+            bool highBlue = b > 220;
+
+            // For white, all color channels should be relatively close to each other
+            bool colorBalance = Math.Abs(r - g) < 30 && Math.Abs(g - b) < 30 && Math.Abs(r - b) < 30;
+
+            // Ensure overall brightness is high
+            bool brightness = (r + g + b) > 660; // Out of possible 765 (255*3)
+
+            return highRed && highGreen && highBlue && colorBalance && brightness;
+        }
         public void Dispose()
         {
             if (disposed) return;
