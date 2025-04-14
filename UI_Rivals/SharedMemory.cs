@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Windows;
 
 namespace UI_Rivals
 {
@@ -8,6 +9,7 @@ namespace UI_Rivals
     /// </summary>
     public unsafe class SharedMemoryManager
     {
+
         // Windows API imports
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern IntPtr CreateFileMapping(
@@ -141,6 +143,7 @@ namespace UI_Rivals
         /// <summary>
         /// Gets the value from shared memory
         /// </summary>
+        
         public int GetValue()
         {
             if (!_isInitialized)
