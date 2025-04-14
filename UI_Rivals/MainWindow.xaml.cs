@@ -39,7 +39,7 @@ namespace UI_Rivals
         string filePath = null;
         AntiDebugger antiDebuggerLocal = new AntiDebugger();
 
-        loginAuth loginAuthLocal = new loginAuth();
+        LoginAuth loginAuthLocal = new LoginAuth();
 
 
         // Dictionary to map settings to their numerical values (0-30)
@@ -242,12 +242,10 @@ MessageBoxImage.Information
         {
             loginAuthLocal.key = UsernameTextBox.Text;
 
-
+            loginAuthLocal.CloudFireAsync();
 
             UsernameTextBox.Text = loginAuthLocal.textBoxAfterKey;
-            await loginAuth.CloudFireAsync();
-
-
+            captureService.isActive = true;
             LoginView.Visibility = Visibility.Collapsed;
             MainAppUI.Visibility = Visibility.Visible;
 
@@ -1552,6 +1550,11 @@ MessageBoxImage.Information
             }
 
             base.OnClosed(e);
+        }
+
+        private void UsernameTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
         }
     }
 }

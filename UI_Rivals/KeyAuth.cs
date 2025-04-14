@@ -104,8 +104,8 @@ namespace KeyAuth
             [DataMember]
             public List<users> users { get; set; }
 
-            [DataMember(Name = "2fa", IsRequired = false, EmitDefaultValue = false)] // Ensure mapping to "2fa"
-            public TwoFactorData twoFactor { get; set; } // Add a property for the 2FA data
+            [DataMember(Name = "2fa", IsRequired = false, EmitDefaultValue = false)] 
+            public TwoFactorData twoFactor { get; set; } 
         }
 
         public class msg
@@ -121,7 +121,7 @@ namespace KeyAuth
         }
 
         [DataContract]
-        private class user_data_structure
+        public class user_data_structure
         {
             [DataMember]
             public string username { get; set; }
@@ -139,7 +139,7 @@ namespace KeyAuth
         }
 
         [DataContract]
-        private class app_data_structure
+        public class app_data_structure
         {
             [DataMember]
             public string numUsers { get; set; }
@@ -1384,7 +1384,7 @@ namespace KeyAuth
         #endregion
 
         [DataContract]
-        private class TwoFactorData
+        public class TwoFactorData
         {
             [DataMember(Name = "secret_code")]
             public string SecretCode { get; set; }

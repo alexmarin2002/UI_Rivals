@@ -17,7 +17,7 @@ namespace UI_Rivals
     {
         private MainWindow mainWindow;
 
-        loginAuth loginAuthLocal = new loginAuth();
+        LoginAuth loginAuthLocal = new LoginAuth();
 
         public bool colorFound = false; //test
 
@@ -245,7 +245,7 @@ namespace UI_Rivals
         private int centerY;
         public int pixelRange = 0; // Default pixel range
         private int colorMode = 0; // 0 = Blue, 1 = Red, 2 = Yellow
-        private bool isActive = true;      //turn on tb
+        public bool isActive = false;      //turn on tb
 
         public int keyCode = 0;
         public int StatusTb = 0;

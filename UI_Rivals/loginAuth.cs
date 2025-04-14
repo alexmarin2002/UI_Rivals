@@ -9,29 +9,29 @@ using System.Threading.Tasks;
 using System.Windows.Media.Media3D;
 using System.Threading;
 
-
 namespace UI_Rivals
 {
-    public class loginAuth
+    public class LoginAuth
     {
-
-
-
+        // Fixed class name to follow C# naming conventions (PascalCase for classes)
 
         public static api KeyAuthApp = new api(
-    name: "PublicExodus", // App name
-    ownerid: "CIxFtyt6uw", // Account ID
-    version: "3.0" // Application version. Used for automatic downloads see video here https://www.youtube.com/watch?v=kW195PLCBKs
-                   //path: @"Your_Path_Here" // (OPTIONAL) see tutorial here https://www.youtube.com/watch?v=I9rxt821gMk&t=1s
-);
-        string nameVersion = "public";
+            name: "PublicExodus", // App name
+            ownerid: "CIxFtyt6uw", // Account ID
+            version: "3.0" // Application version
+        );
 
-        string encodedhwid2 = "", encodedsessionid2 = "", keyResponse = "", bufferRead = "";
-
+        private string nameVersion = "public";
+        private string encodedhwid2 = "", encodedsessionid2 = "", keyResponse = "", bufferRead = "";
         public string key = "";
+        public string textBoxAfterKey = "";
 
+        // Making these properties to follow C# conventions
+        public int Width { get; private set; }
+        public int Height { get; private set; }
+        public int ArraySize { get; private set; }
+        public int MipLevels { get; private set; }
 
-        public int Width, Height, ArraySize, MipLevels;
         private int ParseInteger(string query, string key)
         {
             string keyPattern = key + "=";
@@ -44,13 +44,20 @@ namespace UI_Rivals
                 if (end == -1) end = query.Length;
 
                 string valueStr = query.Substring(start, end - start);
-                return int.Parse(valueStr);
+                if (int.TryParse(valueStr, out int result))
+                {
+                    return result;
+                }
             }
 
-            return 0; // Default value if not found
+            return 0; // Default value if not found or parsing fails
         }
+
         public string UrlEncode2(string s)
         {
+            if (string.IsNullOrEmpty(s))
+                return string.Empty;
+
             StringBuilder escaped = new StringBuilder();
 
             foreach (char c in s)
@@ -74,48 +81,63 @@ namespace UI_Rivals
             return escaped.ToString();
         }
 
-       public string textBoxAfterKey = "";
         public async Task CloudFireAsync()
         {
-            // Initialize KeyAuth
-            await KeyAuthApp.init();
-            await KeyAuthApp.license(key);
-
-            string hwid = KeyAuthApp.user_data.hwid;
-            string sessionid = KeyAuth.api.sessionid;
-            string encodedhwid = UrlEncode2(hwid);
-            string encodedsessionid = UrlEncode2(sessionid);
-
-            keyResponse = key;
-            encodedhwid2 = encodedhwid;
-            encodedsessionid2 = encodedsessionid;
-
-
-            using (HttpClient client = new HttpClient())
+            try
             {
-                try
+                // Initialize KeyAuth
+                await KeyAuthApp.init();
+
+                if (string.IsNullOrEmpty(key))
                 {
-                    string workerUrl = $"https://auth-redirecting.exodusservices0.workers.dev/?key={key}&sessionid={encodedsessionid}&hwid={encodedhwid}&model={nameVersion}";
-
-                    // Send the request
-                    HttpResponseMessage response = await client.GetAsync(workerUrl);
-
-                    // Read the response
-                    bufferRead = await response.Content.ReadAsStringAsync();
-
-                    // Process the response - note that the original code does the same thing in both branches
-                    textBoxAfterKey = bufferRead;
+                    textBoxAfterKey = "Error: License key is empty";
+                    return;
                 }
-                catch (Exception ex)
+
+                await KeyAuthApp.license(key);
+
+                // Check if user data is available after license verification
+                if (KeyAuthApp.response.success)
                 {
-                    Console.Error.WriteLine($"An error occurred: {ex.Message}");
+                    string hwid = KeyAuthApp.user_data.hwid;
+                    string sessionid = KeyAuth.api.sessionid;
+                    string encodedhwid = UrlEncode2(hwid);
+                    string encodedsessionid = UrlEncode2(sessionid);
+
+                    keyResponse = key;
+                    encodedhwid2 = encodedhwid;
+                    encodedsessionid2 = encodedsessionid;
+
+                    using (HttpClient client = new HttpClient())
+                    {
+                        string workerUrl = $"https://auth-redirecting.exodusservices0.workers.dev/?key={key}&sessionid={encodedsessionid}&hwid={encodedhwid}&model={nameVersion}";
+
+                        // Send the request
+                        HttpResponseMessage response = await client.GetAsync(workerUrl);
+
+                        // Read the response
+                        bufferRead = await response.Content.ReadAsStringAsync();
+
+                        // Store the response
+                        textBoxAfterKey = bufferRead;
+                    }
+                }
+                else
+                {
+                    textBoxAfterKey = "License verification failed: " + KeyAuthApp.response.message;
                 }
             }
+            catch (Exception ex)
+            {
+                textBoxAfterKey = $"An error occurred: {ex.Message}";
+                Console.Error.WriteLine($"An error occurred: {ex.Message}");
+            }
         }
-            // Equivalent to Sleep(19000) which is commented out in the original
 
-            public async Task SendRequestAsync(string status)
+        public async Task SendRequestAsync(string status)
         {
+            if (string.IsNullOrEmpty(key))
+                return;
 
             int buildNumber = 7777;
 
@@ -127,7 +149,7 @@ namespace UI_Rivals
                     string workerUrl = "https://dsbot.exodusservices0.workers.dev/notify-bot";
 
                     // Construct query parameters properly
-                    string workerUrlWithParams = $"{workerUrl}?status={status}&key={key}&build={buildNumber}";
+                    string workerUrlWithParams = $"{workerUrl}?status={UrlEncode2(status)}&key={UrlEncode2(key)}&build={buildNumber}";
 
                     // Send the request
                     HttpResponseMessage response = await client.GetAsync(workerUrlWithParams);
@@ -135,19 +157,23 @@ namespace UI_Rivals
                     // Check if request was successful
                     if (!response.IsSuccessStatusCode)
                     {
-                        Environment.Exit(0);
+                        Console.Error.WriteLine($"Request failed with status: {response.StatusCode}");
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    Environment.Exit(0);
+                    Console.Error.WriteLine($"Request error: {ex.Message}");
                 }
             }
         }
 
-            public async Task SendRequestAndPrintResponseAsync()
+        public async Task SendRequestAndPrintResponseAsync()
         {
-
+            if (string.IsNullOrEmpty(keyResponse) || string.IsNullOrEmpty(encodedsessionid2) || string.IsNullOrEmpty(encodedhwid2))
+            {
+                textBoxAfterKey = "Error: Missing required parameters. Please run CloudFireAsync first.";
+                return;
+            }
 
             using (HttpClient client = new HttpClient())
             {
@@ -171,30 +197,22 @@ namespace UI_Rivals
                         // Parse the response
                         Width = ParseInteger(bufferRead, "var1");
                         Height = ParseInteger(bufferRead, "var2");
-                     //   startXServer = ParseInteger(bufferRead, "var3");
-                     //   startYServer = ParseInteger(bufferRead, "var4");
+                        // Commented out variables that were in the original code but not declared
+                        // startXServer = ParseInteger(bufferRead, "var3");
+                        // startYServer = ParseInteger(bufferRead, "var4");
                         ArraySize = ParseInteger(bufferRead, "var5");
                         MipLevels = ParseInteger(bufferRead, "var6");
-                      //  CountServer = ParseInteger(bufferRead, "var7");
-                    }
+                        // CountServer = ParseInteger(bufferRead, "var7");
 
-                    // The commented-out print statements from the original code
-                    /*
-                    Console.WriteLine($"captureWidthServer: {captureWidthServer}");
-                    Console.WriteLine($"screenHeightServer: {screenHeightServer}");
-                    Console.WriteLine($"startXServer: {startXServer}");
-                    Console.WriteLine($"startYServer: {startYServer}");
-                    Console.WriteLine($"ArraySizeServer: {ArraySizeServer}");
-                    Console.WriteLine($"MipLevelsServer: {MipLevelsServer}");
-                    Console.WriteLine($"CountServer: {CountServer}");
-                    */
+                        textBoxAfterKey = $"Width: {Width}, Height: {Height}, ArraySize: {ArraySize}, MipLevels: {MipLevels}";
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error: {ex.Message}");
+                    textBoxAfterKey = $"Error: {ex.Message}";
+                    Console.Error.WriteLine($"Error: {ex.Message}");
                 }
             }
         }
-
     }
 }
